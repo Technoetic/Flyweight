@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoF Flyweight Pattern - Cyberpunk Defense Grid</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050510;
+            --grid-color: rgba(0, 255, 255, 0.05);
+            --primary-neon: #00f3ff;
+            --secondary-neon: #ff00ff;
+            --text-color: #e0faff;
+            --panel-bg: rgba(10, 15, 30, 0.65);
+            --border-color: rgba(0, 243, 255, 0.3);
+            --font-main: 'Rajdhani', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            cursor: crosshair;
+        }
+
+        /* Background Grid Animation */
+        .grid-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 200%;
+            background-image:
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: perspective(500px) rotateX(60deg) translateY(-100px) translateZ(-200px);
+            animation: gridMove 20s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes gridMove {
+            0% {
+                transform: perspective(500px) rotateX(60deg) translateY(0) translateZ(-200px);
+            }
+
+            100% {
+                transform: perspective(500px) rotateX(60deg) translateY(50px) translateZ(-200px);
+            }
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* Glassmorphic UI Containers */
+        .hud-panel {
+            position: absolute;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
+            z-index: 10;
+            text-transform: uppercase;
+            pointer-events: auto;
+        }
+
+        .hud-panel::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: -1px;
+            width: 10px;
+            height: 10px;
+            border-top: 2px solid var(--primary-neon);
+            border-left: 2px solid var(--primary-neon);
+        }
+
+        .hud-panel::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            right: -1px;
+            width: 10px;
+            height: 10px;
+            border-bottom: 2px solid var(--primary-neon);
+            border-right: 2px solid var(--primary-neon);
+        }
+
+        /* Top Left: Stats */
+        #stats-panel {
+            top: 20px;
+            left: 20px;
+            width: 280px;
+        }
+
+        /* Bottom Center: Controls */
+        #controls-panel {
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* Top Right: Info/Intel */
+        #info-panel {
+            top: 20px;
+            right: 20px;
+            text-align: right;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #info-panel:hover {
+            background: rgba(0, 243, 255, 0.1);
+            box-shadow: 0 0 15px var(--primary-neon);
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            color: var(--primary-neon);
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 5px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .stat-value {
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .highlight {
+            color: var(--secondary-neon);
+        }
+
+        /* Buttons */
+        button {
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid var(--primary-neon);
+            color: var(--primary-neon);
+            padding: 10px 15px;
+            font-family: var(--font-main);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: var(--primary-neon);
+            color: #000;
+            box-shadow: 0 0 15px var(--primary-neon);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button.danger {
+            border-color: var(--secondary-neon);
+            color: var(--secondary-neon);
+        }
+
+        button.danger:hover {
+            background: var(--secondary-neon);
+            color: #000;
+            box-shadow: 0 0 15px var(--secondary-neon);
+        }
+
+        /* Switch Toggle */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .4s;
+            border: 1px solid var(--primary-neon);
+            border-radius: 4px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--primary-neon);
+            transition: .4s;
+            border-radius: 2px;
+        }
+
+        input:checked+.slider {
+            background-color: rgba(0, 243, 255, 0.2);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+            background-color: #fff;
+            box-shadow: 0 0 10px #fff;
+        }
+
+        /* Modal styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-color);
+            border: 1px solid var(--primary-neon);
+            padding: 40px;
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.2);
+        }
+
+        .modal-content h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+        }
+
+        .modal-content ul {
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        .modal-content li {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--secondary-neon);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            color: #fff;
+            transform: rotate(90deg);
+        }
+
+        /* Glow effects for text */
+        .neon-text {
+            text-shadow: 0 0 5px var(--primary-neon);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="grid-bg"></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Stats HUD -->
+    <div id="stats-panel" class="hud-panel">
+        <h2>System Diagnostic</h2>
+
+        <div class="toggle-container">
+            <div style="display:flex; flex-direction:column; gap:5px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size: 0.9rem;">Flyweight Mode</span>
+                    <label class="switch">
+                        <input type="checkbox" id="fw-toggle" checked onchange="Game.toggleFlyweight(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div style="display:flex; align-items:center; gap:5px; font-size: 0.8rem; color: #888;">
+                    <input type="checkbox" id="auto-convert" checked>
+                    <label for="auto-convert">Hot-Swap Existing</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-row">
+            <span>Score</span>
+            <span id="score-display" class="stat-value highlight">0</span>
+        </div>
+        <div class="stat-row">
+            <span>Active Entities</span>
+            <span id="unit-count" class="stat-value">0</span>
+        </div>
+
+        <div
+            style="margin: 10px 0; border-top: 1px dashed rgba(255,255,255,0.2); border-bottom: 1px dashed rgba(255,255,255,0.2); padding: 5px 0;">
+            <div class="stat-row" style="font-size: 0.85rem; color: #aaa;">
+                <span>Shared Entities</span>
+                <span id="shared-count" class="stat-value" style="color: #00ff66">0</span>
+            </div>
+            <div class="stat-row" style="font-size: 0.85rem; color: #aaa;">
+                <span>Heavy Entities</span>
+                <span id="heavy-count" class="stat-value" style="color: #ff0055">0</span>
+            </div>
+        </div>
+
+        <div class="stat-row">
+            <span>Model Instances</span>
+            <span id="model-count" class="stat-value">0</span>
+        </div>
+        <div class="stat-row">
+            <span>Total Allocations</span>
+            <span id="alloc-count" class="stat-value" style="color: var(--primary-neon);">0</span>
+        </div>
+
+        <div class="stat-row">
+            <span>Payload Memory</span>
+            <span id="memory-est" class="stat-value">0 KB</span>
+        </div>
+        <div class="stat-row">
+            <span>Est. Savings</span>
+            <span id="opt-ratio" class="stat-value highlight">0x</span>
+        </div>
+
+        <div class="stat-row" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top:10px;">
+            <span>FPS</span>
+            <span id="fps-counter" class="stat-value">60</span>
+        </div>
+    </div>
+
+    <!-- Controls Bottom -->
+    <div id="controls-panel" class="hud-panel">
+        <button onclick="Game.spawnSquad('INTERCEPTOR', 100)">+100 Interceptors</button>
+        <button onclick="Game.spawnSquad('BOMBER', 50)">+50 Bombers</button>
+        <div style="width: 1px; height: 30px; background: rgba(255,255,255,0.2);"></div>
+        <button class="danger" onclick="Game.purgeSystem()">Purge All</button>
+    </div>
+
+    <!-- Top Right Intel -->
+    <div id="info-panel" class="hud-panel" onclick="UI.toggleModal(true)">
+        <h2>Intel Database</h2>
+        <div style="font-size: 0.8rem; letter-spacing: 1px;">CLICK FOR DETAILS</div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal-overlay" onclick="if(event.target === this) UI.toggleModal(false)">
+        <div class="modal-content">
+            <button class="close-btn" onclick="UI.toggleModal(false)">×</button>
+            <h2 class="neon-text">Pattern Analysis: Flyweight</h2>
+            <p style="margin-bottom: 15px; color: #aaa;">
+                Advanced optimizations now active.
+            </p>
+            <h3>Improvements:</h3>
+            <ul>
+                <li><strong>Spatial Hashing:</strong> Collision detection optimized with a grid system (O(N) approx).
+                </li>
+                <li><strong>Comparison Mode:</strong> Toggle 'Flyweight Mode' to see memory explosion when every object
+                    creates its own model data.</li>
+                <li><strong>Spread Shot:</strong> Player now fires 3 projectiles, all sharing the same lightweight
+                    model.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Flyweight & Optimization Implementation
+         */
+
+        // 0. Spatial Grid for Collision Optimization
+        class SpatialGrid {
+            constructor(cellSize) {
+                this.cellSize = cellSize;
+                this.buckets = new Map();
+            }
+
+            clear() {
+                this.buckets.clear();
+            }
+
+            getKey(x, y) {
+                const cx = Math.floor(x / this.cellSize);
+                const cy = Math.floor(y / this.cellSize);
+                return `${cx},${cy}`;
+            }
+
+            insert(entity) {
+                const key = this.getKey(entity.x, entity.y);
+                if (!this.buckets.has(key)) {
+                    this.buckets.set(key, []);
+                }
+                this.buckets.get(key).push(entity);
+            }
+
+            getNearby(x, y) {
+                const cx = Math.floor(x / this.cellSize);
+                const cy = Math.floor(y / this.cellSize);
+                const results = [];
+
+                // Check 3x3 grid around the cell
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        const key = `${cx + i},${cy + j}`;
+                        if (this.buckets.has(key)) {
+                            results.push(...this.buckets.get(key));
+                        }
+                    }
+                }
+                return results;
+            }
+        }
+
+        // 1. The Flyweight (Intrinsic State) - For Drones
+        class DroneModel {
+            constructor(type) {
+                this.type = type;
+                this.path = new Path2D();
+
+                // Variable Payload Weights
+                // Float32 = 4 bytes
+                let payloadSize = 0;
+
+                switch (type) {
+                    case 'INTERCEPTOR':
+                        this.color = '#ff0055';
+                        this.speed = 3;
+                        this.maxHealth = 10;
+                        this.path.moveTo(10, 0);
+                        this.path.lineTo(-8, 7);
+                        this.path.lineTo(-4, 0);
+                        this.path.lineTo(-8, -7);
+                        this.path.closePath();
+                        this.size = 12;
+                        // 10 KB Payload
+                        payloadSize = 2500;
+                        break;
+                    case 'BOMBER':
+                        this.color = '#ffaa00';
+                        this.speed = 1.5;
+                        this.maxHealth = 40;
+                        this.path.moveTo(8, 0);
+                        this.path.lineTo(4, 8);
+                        this.path.lineTo(-4, 8);
+                        this.path.lineTo(-8, 0);
+                        this.path.lineTo(-4, -8);
+                        this.path.lineTo(4, -8);
+                        this.path.closePath();
+                        this.size = 20;
+                        // 20 KB Payload (Heavier Texture)
+                        payloadSize = 5000;
+                        break;
+                }
+
+                this.payload = new Float32Array(payloadSize).fill(Math.random());
+                // Base size overhead (~200b) + Payload
+                this.byteSize = 200 + (this.payload.length * 4);
+            }
+
+            render(ctx) {
+                ctx.fillStyle = this.color;
+                ctx.fill(this.path);
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+            }
+        }
+
+        // 2. The Flyweight (Intrinsic State) - For Bullets
+        class BulletModel {
+            constructor(type) {
+                this.type = type;
+                this.path = new Path2D();
+                this.path.arc(0, 0, 3, 0, Math.PI * 2);
+
+                // ~1 KB Payload for bullets
+                this.payload = new Float32Array(250).fill(Math.random());
+                this.byteSize = 100 + (this.payload.length * 4);
+
+                switch (type) {
+                    case 'PLASMA':
+                        this.color = '#00f3ff';
+                        this.speed = 12;
+                        this.damage = 10;
+                        break;
+                }
+            }
+
+            render(ctx) {
+                ctx.fillStyle = this.color;
+                ctx.fill(this.path);
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = this.color;
+            }
+        }
+
+        // 3. Flyweight Factories
+        class DroneFactory {
+            constructor() {
+                this.cache = {};
+                this.totalAllocations = 0; // For stats
+            }
+            getModel(type) {
+                if (!Game.useFlyweight) {
+                    this.totalAllocations++;
+                    return new DroneModel(type); // Create NEW intrinsic data every time
+                }
+                if (!this.cache[type]) {
+                    this.cache[type] = new DroneModel(type);
+                    this.totalAllocations++;
+                }
+                return this.cache[type];
+            }
+            getAllocationCount() { return this.totalAllocations; }
+            getCacheSize() { return Object.keys(this.cache).length; }
+            getCacheMemory() {
+                return Object.values(this.cache).reduce((acc, m) => acc + m.byteSize, 0);
+            }
+            resetStats() { this.totalAllocations = 0; this.cache = {}; }
+        }
+
+        class BulletFactory {
+            constructor() {
+                this.cache = {};
+                this.totalAllocations = 0;
+            }
+            getModel(type) {
+                if (!Game.useFlyweight) {
+                    this.totalAllocations++;
+                    return new BulletModel(type);
+                }
+                if (!this.cache[type]) {
+                    this.cache[type] = new BulletModel(type);
+                    this.totalAllocations++;
+                }
+                return this.cache[type];
+            }
+            getAllocationCount() { return this.totalAllocations; }
+            getCacheSize() { return Object.keys(this.cache).length; }
+            getCacheMemory() {
+                return Object.values(this.cache).reduce((acc, m) => acc + m.byteSize, 0);
+            }
+            resetStats() { this.totalAllocations = 0; this.cache = {}; }
+        }
+
+        // 4. Context (Extrinsic State)
+        class Entity {
+            constructor(model, x, y, isShared) {
+                this.model = model;
+                this.x = x;
+                this.y = y;
+                this.active = true;
+                this.isShared = isShared;
+            }
+
+            draw(ctx) {
+                if (!this.active) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                if (this.angle) ctx.rotate(this.angle);
+                this.model.render(ctx);
+                ctx.restore();
+            }
+        }
+
+        class Drone extends Entity {
+            constructor(model, x, y, canvasW, canvasH, isShared) {
+                super(model, x, y, isShared);
+                this.health = model.maxHealth; // Unique Health
+                this.angle = Math.random() * Math.PI * 2;
+                const speed = model.speed * (0.8 + Math.random() * 0.4);
+                this.vx = Math.cos(this.angle) * speed;
+                this.vy = Math.sin(this.angle) * speed;
+                this.bounds = { w: canvasW, h: canvasH };
+            }
+
+            update() {
+                if (!this.active) return;
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0 || this.x > this.bounds.w) {
+                    this.vx *= -1;
+                    this.x = Math.max(0, Math.min(this.x, this.bounds.w));
+                }
+                if (this.y < 0 || this.y > this.bounds.h) {
+                    this.vy *= -1;
+                    this.y = Math.max(0, Math.min(this.y, this.bounds.h));
+                }
+            }
+
+            takeDamage(amount) {
+                this.health -= amount;
+                if (this.health <= 0) {
+                    this.active = false;
+                    return true; // Killed
+                }
+                return false;
+            }
+        }
+
+        class Bullet extends Entity {
+            constructor(model, x, y, angle, isShared) {
+                super(model, x, y, isShared);
+                this.vx = Math.cos(angle) * model.speed;
+                this.vy = Math.sin(angle) * model.speed;
+            }
+
+            update() {
+                if (!this.active) return;
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Out of bounds
+                if (this.x < -50 || this.x > window.innerWidth + 50 ||
+                    this.y < -50 || this.y > window.innerHeight + 50) {
+                    this.active = false;
+                }
+            }
+        }
+
+        // Player Class
+        class Player {
+            constructor() {
+                this.x = window.innerWidth / 2;
+                this.y = window.innerHeight / 2;
+                this.size = 20;
+                this.color = '#ffffff';
+            }
+
+            update(mouseX, mouseY) {
+                this.x += (mouseX - this.x) * 0.1;
+                this.y += (mouseY - this.y) * 0.1;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.beginPath();
+                ctx.moveTo(15, 0);
+                ctx.lineTo(-10, 10);
+                ctx.lineTo(-5, 0);
+                ctx.lineTo(-10, -10);
+                ctx.closePath();
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00f3ff';
+                ctx.restore();
+            }
+        }
+
+        const Game = {
+            canvas: document.getElementById('gameCanvas'),
+            ctx: null,
+            width: 0,
+            height: 0,
+
+            player: new Player(),
+            drones: [],
+            bullets: [],
+
+            droneFactory: new DroneFactory(),
+            bulletFactory: new BulletFactory(),
+            grid: new SpatialGrid(100), // 100px cell size
+
+            mouseX: 0,
+            mouseY: 0,
+            score: 0,
+            running: true,
+            useFlyweight: true,
+            lastTime: 0,
+
+            init() {
+                this.ctx = this.canvas.getContext('2d', { alpha: false });
+                this.resize();
+
+                window.addEventListener('resize', () => this.resize());
+                window.addEventListener('mousemove', (e) => {
+                    this.mouseX = e.clientX;
+                    this.mouseY = e.clientY;
+                });
+                window.addEventListener('mousedown', () => this.shoot());
+
+                this.spawnSquad('INTERCEPTOR', 20);
+                requestAnimationFrame((t) => this.loop(t));
+            },
+
+            resize() {
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+                this.drones.forEach(d => d.bounds = { w: this.width, h: this.height });
+            },
+
+            toggleFlyweight(enabled) {
+                this.useFlyweight = enabled;
+                const autoConvert = document.getElementById('auto-convert').checked;
+                console.log(`Flyweight Mode: ${enabled}, Hot-Swap: ${autoConvert}`);
+
+                if (autoConvert) {
+                    this.convertEntities(enabled);
+                }
+                UI.updateStats();
+            },
+
+            convertEntities(toFlyweight) {
+                // Convert Drones
+                for (const d of this.drones) {
+                    if (toFlyweight) {
+                        // Heavy -> Shared
+                        d.model = this.droneFactory.getModel(d.model.type);
+                        d.isShared = true;
+                    } else {
+                        // Shared -> Heavy
+                        const newModel = new DroneModel(d.model.type);
+                        this.droneFactory.totalAllocations++; // Manually count this allocation
+                        d.model = newModel;
+                        d.isShared = false;
+                    }
+                }
+
+                // Convert Bullets
+                for (const b of this.bullets) {
+                    if (toFlyweight) {
+                        b.model = this.bulletFactory.getModel(b.model.type);
+                        b.isShared = true;
+                    } else {
+                        const newModel = new BulletModel(b.model.type);
+                        this.bulletFactory.totalAllocations++; // Manually count this allocation
+                        b.model = newModel;
+                        b.isShared = false;
+                    }
+                }
+            },
+
+            spawnSquad(type, count) {
+                for (let i = 0; i < count; i++) {
+                    // This call will either return a shared model or a new one based on flag
+                    const isShared = this.useFlyweight;
+                    const model = this.droneFactory.getModel(type);
+
+                    let x, y;
+                    if (Math.random() > 0.5) {
+                        x = Math.random() > 0.5 ? 0 : this.width;
+                        y = Math.random() * this.height;
+                    } else {
+                        x = Math.random() * this.width;
+                        y = Math.random() > 0.5 ? 0 : this.height;
+                    }
+                    this.drones.push(new Drone(model, x, y, this.width, this.height, isShared));
+                }
+                UI.updateStats();
+            },
+
+            shoot() {
+                const model = this.bulletFactory.getModel('PLASMA');
+                const isShared = this.useFlyweight;
+                const angleBase = Math.atan2(this.mouseY - this.player.y, this.mouseX - this.player.x);
+
+                // Spread Shot: -15, 0, +15 degrees
+                const spreads = [-0.25, 0, 0.25]; // Radians approx for 14 deg
+
+                spreads.forEach(offset => {
+                    this.bullets.push(new Bullet(model, this.player.x, this.player.y, angleBase + offset, isShared));
+                });
+            },
+
+            purgeSystem() {
+                this.drones = [];
+                this.bullets = [];
+                this.score = 0;
+                this.droneFactory.resetStats(); // Optional: reset stats on purge? Let's do it for clarity
+                this.bulletFactory.resetStats();
+                UI.updateScore(0);
+                UI.updateStats();
+            },
+
+            checkCollisions() {
+                // 1. Clear & Populate Grid
+                this.grid.clear();
+                for (const d of this.drones) {
+                    if (d.active) this.grid.insert(d);
+                }
+
+                // 2. Check Bullets against nearby Drones
+                for (const b of this.bullets) {
+                    if (!b.active) continue;
+
+                    // Only check drones in same or neighboring cells
+                    const nearbyDrones = this.grid.getNearby(b.x, b.y);
+
+                    for (const d of nearbyDrones) {
+                        const dx = b.x - d.x;
+                        const dy = b.y - d.y;
+
+                        // MICRO-OPTIMIZATION: Squared Distance
+                        // Avoid Math.sqrt()
+                        const distSq = (dx * dx) + (dy * dy);
+                        const radiusRaw = d.model.size + 5;
+                        const radiusSq = radiusRaw * radiusRaw;
+
+                        if (distSq < radiusSq) {
+                            b.active = false;
+                            const killed = d.takeDamage(b.model.damage);
+                            if (killed) {
+                                this.score += (d.model.type === 'BOMBER' ? 250 : 100);
+                            }
+                            break; // Bullet hit something, stop checking this bullet
+                        }
+                    }
+                }
+            },
+
+            loop(timestamp) {
+                if (!this.running) return;
+                const dt = timestamp - this.lastTime;
+                this.lastTime = timestamp;
+
+                this.ctx.fillStyle = 'rgba(5, 5, 16, 0.4)';
+                this.ctx.fillRect(0, 0, this.width, this.height);
+
+                this.player.update(this.mouseX, this.mouseY);
+                this.player.draw(this.ctx);
+
+                // Filter Active
+                this.bullets = this.bullets.filter(b => b.active);
+                this.drones = this.drones.filter(d => d.active);
+
+                for (const b of this.bullets) {
+                    b.update();
+                    b.draw(this.ctx);
+                }
+
+                for (const d of this.drones) {
+                    d.update();
+                    d.draw(this.ctx);
+                }
+
+                this.checkCollisions();
+
+                if (timestamp % 100 < 16) {
+                    UI.updateFPS(Math.round(1000 / dt));
+                    UI.updateStats();
+                    UI.updateScore(this.score);
+                }
+
+                requestAnimationFrame((t) => this.loop(t));
+            }
+        };
+
+        const UI = {
+            elCount: document.getElementById('unit-count'),
+            elShared: document.getElementById('shared-count'),
+            elHeavy: document.getElementById('heavy-count'),
+            elModel: document.getElementById('model-count'),
+            elAlloc: document.getElementById('alloc-count'),
+            elMem: document.getElementById('memory-est'),
+            elOpt: document.getElementById('opt-ratio'),
+            elFPS: document.getElementById('fps-counter'),
+            elScore: document.getElementById('score-display'),
+            elModal: document.getElementById('modal'),
+
+            toggleModal(show) { this.elModal.classList.toggle('active', show); },
+            updateFPS(fps) {
+                this.elFPS.innerText = fps;
+                this.elFPS.style.color = fps < 30 ? '#ff0055' : (fps < 50 ? '#ffff00' : '#00ff66');
+            },
+            updateScore(score) {
+                this.elScore.innerText = score.toLocaleString();
+            },
+            updateStats() {
+                const allEntities = [...Game.drones, ...Game.bullets];
+                const count = allEntities.length;
+
+                const sharedCount = allEntities.filter(e => e.isShared).length;
+                const heavyCount = allEntities.filter(e => !e.isShared).length;
+
+                const cachedModelsCount = Game.droneFactory.getCacheSize() + Game.bulletFactory.getCacheSize();
+                const liveModelInstances = cachedModelsCount + heavyCount;
+
+                const totalAllocations = Game.droneFactory.getAllocationCount() + Game.bulletFactory.getAllocationCount();
+
+                this.elCount.innerText = count.toLocaleString();
+                this.elShared.innerText = sharedCount.toLocaleString();
+                this.elHeavy.innerText = heavyCount.toLocaleString();
+                this.elModel.innerText = liveModelInstances.toLocaleString();
+                this.elAlloc.innerText = totalAllocations.toLocaleString();
+
+                // EXACT Memory Calculation (O(N))
+                // Context Overhead: JS Object ~80 bytes + Props
+                const CONTEXT_SIZE = 128;
+
+                let actualMemory = 0;
+
+                // 1. All Contexts
+                actualMemory += (count * CONTEXT_SIZE);
+
+                // 2. Cached Models (Shared by 'Shared' entities)
+                actualMemory += Game.droneFactory.getCacheMemory();
+                actualMemory += Game.bulletFactory.getCacheMemory();
+
+                // 3. Heavy Models (Owned by 'Heavy' entities)
+                // We must iterate to find strict size (as Bombers are bigger than Interceptors)
+                for (const e of allEntities) {
+                    if (!e.isShared) {
+                        actualMemory += e.model.byteSize;
+                    }
+                }
+
+                // Reference Calculation (Naive Mode)
+                // What if EVERY entity had its own model?
+                let naiveMemory = count * CONTEXT_SIZE;
+                for (const e of allEntities) {
+                    // Pretend every entity created a fresh model of its type
+                    naiveMemory += e.model.byteSize;
+                }
+
+                const ratio = naiveMemory / (actualMemory || 1);
+
+                this.elMem.innerText = this.formatBytes(actualMemory);
+                this.elOpt.innerText = `${ratio.toFixed(1)}x`;
+            },
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        };
+
+        window.onload = () => Game.init();
+    </script>
+</body>
+
+</html>
